@@ -40,7 +40,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add cache history
+          mkdir -p data && cp site/data.json data/latest.json
+          git add cache history data
           git diff --cached --quiet || git commit -m "Aggiornamento mappa $(date -u +%F)"
           git push
       - uses: actions/upload-pages-artifact@v3
