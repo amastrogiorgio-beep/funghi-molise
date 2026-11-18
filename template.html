@@ -1,0 +1,287 @@
+<title>Funghi in Molise</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: testata compatta, mappa grande a sinistra con scheda della cella a destra (in colonna su telefono), poi andamento meteo e metodo. */
+:root{
+  --bg:#f3f5f1; --surface:#ffffff; --fg:#1d2621; --muted:#5d6a62; --line:#d6ddd6;
+  --accent:#7a4a1f;           /* bruno "cappello di porcino" per link e selezione */
+  --nonforest:#e3e7e1; --border-region:#2b3a31; --label:#1d2621; --halo:rgba(255,255,255,.85);
+  --rain:#4f7fa8; --tmax:#c0603a; --tmin:#4f7fa8;
+  --c0:#eef0d8; --c1:#c7d98a; --c2:#7fb35e; --c3:#2f7d4a; --c4:#0f4a35;
+  --up:#2f7d4a; --down:#b04a2f;
+  --f-display:"Space Grotesk",system-ui,sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a17; --surface:#1c2420; --fg:#e4ebe6; --muted:#9aa89f; --line:#2f3a34;
+  --accent:#e0a96d; --nonforest:#252e29; --border-region:#cfdad2; --label:#e4ebe6; --halo:rgba(20,26,23,.85);
+  --rain:#7fb0d9; --tmax:#e48a63; --tmin:#7fb0d9;
+  --c0:#2c3526; --c1:#55703a; --c2:#7fae55; --c3:#b4d97a; --c4:#f0f7c4;
+  --up:#8fd18a; --down:#ee8a6d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a17; --surface:#1c2420; --fg:#e4ebe6; --muted:#9aa89f; --line:#2f3a34;
+  --accent:#e0a96d; --nonforest:#252e29; --border-region:#cfdad2; --label:#e4ebe6; --halo:rgba(20,26,23,.85);
+  --rain:#7fb0d9; --tmax:#e48a63; --tmin:#7fb0d9;
+  --c0:#2c3526; --c1:#55703a; --c2:#7fae55; --c3:#b4d97a; --c4:#f0f7c4;
+  --up:#8fd18a; --down:#ee8a6d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+header{display:grid;gap:6px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,4.5vw,40px);line-height:1.05;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:500;font-size:20px;margin:0 0 10px;text-wrap:balance}
+.sub{color:var(--muted);margin:0}
+.kpis{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:8px;font-size:14px}
+.kpis b{font-family:var(--f-data);font-weight:500;font-size:16px;color:var(--fg)}
+.kpis span{color:var(--muted)}
+.notice{border-left:3px solid var(--accent);padding:8px 12px;background:var(--surface);font-size:14px;color:var(--muted);margin:4px 0 0}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:20px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.mapbox{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;gap:10px;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.toolbar .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:4px}
+.seg{font:inherit;font-size:13px;border:1px solid var(--line);background:transparent;color:var(--fg);padding:5px 10px;border-radius:999px;cursor:pointer}
+.seg[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.seg:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+canvas#map{width:100%;display:block;touch-action:manipulation;cursor:crosshair}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted);align-items:center}
+.sw{display:inline-block;width:14px;height:14px;border-radius:2px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+aside.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;min-width:0}
+.big{display:flex;align-items:baseline;gap:10px}
+.big .n{font-family:var(--f-data);font-size:44px;font-weight:500;line-height:1}
+.pill{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.05em}
+dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:0;font-size:14px}
+dt{color:var(--muted)} dd{margin:0;font-family:var(--f-data);font-size:13px;text-align:right}
+.bars{display:grid;gap:6px;font-size:13px}
+.bar{display:grid;grid-template-columns:92px 1fr 34px;gap:8px;align-items:center}
+.bar i{display:block;height:8px;border-radius:4px;background:var(--line);position:relative;overflow:hidden}
+.bar i u{position:absolute;inset:0 auto 0 0;background:var(--c3)}
+.bar em{font-style:normal;font-family:var(--f-data);text-align:right}
+.links{display:flex;gap:14px;font-size:14px;flex-wrap:wrap}
+a{color:var(--accent)}
+.sp{font-size:14px;margin:0}
+.hint{font-size:13px;color:var(--muted);margin:0}
+ol.top{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px}
+ol.top button{font:inherit;background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;text-align:left}
+section.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+canvas#chart{width:100%;display:block}
+.method{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.method p,.method li{font-size:14px;max-width:65ch}
+.method ul{padding-left:18px;margin:6px 0}
+code,.formula{font-family:var(--f-data);font-size:13px}
+.formula{display:block;background:var(--bg);border:1px solid var(--line);padding:10px 12px;border-radius:4px;overflow-x:auto;white-space:pre}
+footer{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Funghi in Molise</h1>
+    <p class="sub" id="period"></p>
+    <div class="kpis" id="kpis"></div>
+    <p class="notice">Indice euristico, non una probabilità misurata: combina bosco, pioggia e temperatura con soglie dichiarate qui sotto, e non è tarato su ritrovamenti reali. Usalo per scegliere dove guardare, non per sapere cosa troverai.</p>
+  </header>
+
+  <div class="main">
+    <div class="mapbox">
+      <div class="toolbar" role="group" aria-label="Livello mostrato">
+        <span class="lbl">Mostra</span>
+        <button class="seg" id="l-i" data-layer="i" aria-pressed="true">Indice</button>
+        <button class="seg" id="l-W" data-layer="W" aria-pressed="false">Acqua</button>
+        <button class="seg" id="l-T" data-layer="T" aria-pressed="false">Temperatura</button>
+        <button class="seg" id="l-f" data-layer="forest" aria-pressed="false">Bosco</button>
+        <button class="seg" id="l-d" data-layer="d" aria-pressed="false" hidden>Variazione</button>
+      </div>
+      <canvas id="map" aria-label="Mappa del Molise a celle colorate per indice"></canvas>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <aside class="card" id="card" aria-live="polite"></aside>
+  </div>
+
+  <section class="panel">
+    <h2>Pioggia e temperature degli ultimi 40 giorni</h2>
+    <p class="hint">Media sui punti meteo del Molise. Barre: pioggia giornaliera (mm). Linee: minima e massima (°C) alla quota del modello, non della singola cella.</p>
+    <canvas id="chart" height="220"></canvas>
+  </section>
+
+  <section class="panel">
+    <h2>Come è calcolato</h2>
+    <div class="method">
+      <div>
+        <span class="formula">indice = 100 × Bosco × Acqua × Temperatura</span>
+        <p>Ogni fattore va da 0 a 1 e il prodotto fa sì che basti un fattore a zero (niente bosco, terreno secco, gelo) per spegnere la cella.</p>
+        <ul>
+          <li><b>Bosco</b>: quota di superficie della cella (~2 × 2 km) con alberi e chiome ≥ 30 %. Vale 0 sotto il 5 % e 1 dal 50 % in su.</li>
+          <li><b>Acqua</b>: 60 % pioggia d'innesco (massimo cumulato in 5 giorni caduto tra 7 e 25 giorni fa: 0 a 10 mm, pieno a 45 mm) + 40 % bilancio idrico degli ultimi 14 giorni (pioggia meno evapotraspirazione: 0 a −15 mm, pieno a +20 mm).</li>
+          <li><b>Temperatura</b>: media degli ultimi 10 giorni riportata alla quota della cella (−0,65 °C ogni 100 m). Ottimale tra 9 e 17 °C, nulla sotto 3 °C o sopra 24 °C. Ogni notte con minima ≤ 0 °C moltiplica per 0,8, ogni notte ≤ −3 °C anche per 0,6.</li>
+        </ul>
+      </div>
+      <div>
+        <p><b>Cosa non sa questo indice</b></p>
+        <ul>
+          <li>Non è tarato: nessuna soglia viene da dati di ritrovamento molisani. Se segni dove e quando trovi funghi, si può tarare.</li>
+          <li>La pioggia viene da modelli meteo (ERA5 e ECMWF via Open-Meteo, griglia ~10 km), non dai pluviometri: i temporali locali sfuggono e la pioggia orografica è smussata.</li>
+          <li>Esposizione e pendenza non sono considerate: a novembre un versante a sud può produrre quando quello a nord è già chiuso.</li>
+          <li>Il tipo di bosco distingue solo latifoglie e conifere (Copernicus 2018). Faggeta, cerreta o castagneto sono dedotti dalla quota, non osservati.</li>
+          <li>Tratta tutti i funghi insieme. Le specie indicate nella scheda sono un promemoria stagionale, non una previsione.</li>
+          <li>Guarda al passato (fino a ieri), non alle previsioni dei prossimi giorni.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const DATA=/*__DATA__*/null;
+(function(){
+if(!DATA){document.getElementById('card').textContent='Dati non disponibili.';return;}
+const $=s=>document.querySelector(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmtD=s=>new Date(s+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long'});
+const cells=DATA.cells, half=DATA.cell/2;
+const CLASSES=[[0,'Bassa'],[15,'Moderata'],[35,'Buona'],[60,'Ottima']];
+const cls=i=>{let k=0;CLASSES.forEach((c,j)=>{if(i>=c[0])k=j});return k};
+const forested=cells.filter(c=>c.forest>=0.05);
+let layer='i', sel=null, hover=null;
+
+// testata
+$('#period').textContent=`Settimana del ${fmtD(DATA.ref)} · meteo dal ${fmtD(DATA.start)} al ${fmtD(DATA.end)}`;
+const avg=forested.reduce((s,c)=>s+c.i,0)/Math.max(forested.length,1);
+const good=forested.filter(c=>c.i>=35).length;
+const km2=c=>(DATA.cell*111)*(DATA.cell*111*Math.cos(c.lat*Math.PI/180));
+const forestKm=Math.round(cells.reduce((s,c)=>s+c.forest*km2(c),0));
+$('#kpis').innerHTML=`<div><span>Indice medio nei boschi</span> <b>${Math.round(avg)}</b></div>
+<div><span>Celle buone o ottime</span> <b>${good}</b><span> su ${forested.length}</span></div>
+<div><span>Bosco considerato</span> <b>${forestKm.toLocaleString('it-IT')}</b><span> km²</span></div>`;
+if(DATA.prev){$('#l-d').hidden=false}
+$('#foot').innerHTML=`Generata il ${new Date(DATA.generated).toLocaleString('it-IT',{dateStyle:'medium',timeStyle:'short'})}. Fonti: Open-Meteo Historical API (meteo e quota DEM 90 m), Copernicus HRL Dominant Leaf Type e Tree Cover Density 2018, confini Eurostat NUTS 2024 via EEA.`;
+
+// proiezione
+const B=DATA.boundary.type==='Polygon'?[DATA.boundary.coordinates]:DATA.boundary.coordinates;
+let lo0=180,lo1=-180,la0=90,la1=-90;
+B.forEach(p=>p[0].forEach(([x,y])=>{lo0=Math.min(lo0,x);lo1=Math.max(lo1,x);la0=Math.min(la0,y);la1=Math.max(la1,y)}));
+lo0-=0.03;lo1+=0.03;la0-=0.03;la1+=0.03;
+const kx=Math.cos((la0+la1)/2*Math.PI/180);
+const aspect=(la1-la0)/((lo1-lo0)*kx);
+const cv=$('#map'), ctx=cv.getContext('2d');
+let W=0,H=0,dpr=1;
+const X=lon=>(lon-lo0)/(lo1-lo0)*W, Y=lat=>(la1-lat)/(la1-la0)*H;
+
+const PLACES=[["Campobasso",41.561,14.668,1],["Isernia",41.594,14.233,1],["Termoli",42.001,14.995,1],["Agnone",41.810,14.376,0],["Venafro",41.484,14.046,0],["Bojano",41.484,14.472,0],["Larino",41.801,14.913,0],["Capracotta",41.833,14.266,0],["Frosolone",41.600,14.449,0],["Trivento",41.783,14.552,0],["Riccia",41.484,14.836,0],["Sepino",41.408,14.619,0],["Montenero di B.",41.961,14.781,0]];
+const PEAKS=[["M. Miletto 2050",41.453,14.367],["M. Campo 1746",41.835,14.243]];
+
+function ramp(v){const k=['--c0','--c1','--c2','--c3','--c4'];return css(k[Math.max(0,Math.min(4,v))])}
+function color(c){
+  if(layer==='forest'){return c.forest<0.05?css('--nonforest'):ramp(c.forest<0.15?0:c.forest<0.3?1:c.forest<0.5?2:c.forest<0.7?3:4)}
+  if(c.forest<0.05)return css('--nonforest');
+  if(layer==='i')return ramp(cls(c.i)+ (c.i>=80?1:0));
+  if(layer==='W'||layer==='T'){const v=c[layer];return ramp(v<0.2?0:v<0.4?1:v<0.6?2:v<0.8?3:4)}
+  if(layer==='d'){if(c.d==null)return css('--nonforest');return c.d>=5?css('--up'):c.d<=-5?css('--down'):css('--c0')}
+}
+function legend(){
+  const sw=(col,t)=>`<span><span class="sw" style="background:${col}"></span>${t}</span>`;
+  let h='';
+  if(layer==='i')h=[sw(ramp(0),'Bassa &lt;15'),sw(ramp(1),'Moderata 15–34'),sw(ramp(2),'Buona 35–59'),sw(ramp(3),'Ottima 60–79'),sw(ramp(4),'≥80')].join('');
+  else if(layer==='forest')h=[sw(ramp(0),'5–15 %'),sw(ramp(1),'15–30 %'),sw(ramp(2),'30–50 %'),sw(ramp(3),'50–70 %'),sw(ramp(4),'&gt;70 %')].join('');
+  else if(layer==='d')h=[sw(css('--up'),'migliorata ≥5'),sw(css('--c0'),'stabile'),sw(css('--down'),'peggiorata ≥5')].join('')+`<span>rispetto al ${fmtD(DATA.prev)}</span>`;
+  else h=[0,1,2,3,4].map(k=>sw(ramp(k),['0–0,2','0,2–0,4','0,4–0,6','0,6–0,8','0,8–1'][k])).join('')+`<span>fattore ${layer==='W'?'acqua':'temperatura'}</span>`;
+  h+=sw(css('--nonforest'),'bosco &lt;5 %');
+  $('#legend').innerHTML=h;
+}
+function draw(){
+  const r=cv.getBoundingClientRect(); dpr=window.devicePixelRatio||1;
+  W=r.width; H=Math.round(W*aspect); cv.style.height=H+'px';
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  // ritaglio sul confine
+  ctx.save(); ctx.beginPath();
+  B.forEach(p=>p.forEach(ring=>ring.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y)))));
+  ctx.clip('evenodd');
+  ctx.fillStyle=css('--nonforest'); ctx.fillRect(0,0,W,H);
+  cells.forEach(c=>{ctx.fillStyle=color(c);const x0=X(c.lon-half),y0=Y(c.lat+half);ctx.fillRect(x0,y0,X(c.lon+half)-x0+0.6,Y(c.lat-half)-y0+0.6)});
+  ctx.restore();
+  ctx.lineWidth=1.4; ctx.strokeStyle=css('--border-region'); ctx.beginPath();
+  B.forEach(p=>p.forEach(ring=>ring.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y)))));
+  ctx.stroke();
+  [hover,sel].forEach((c,k)=>{if(!c)return;const x0=X(c.lon-half),y0=Y(c.lat+half);ctx.lineWidth=k?2.5:1.5;ctx.strokeStyle=k?css('--accent'):css('--fg');ctx.strokeRect(x0,y0,X(c.lon+half)-x0,Y(c.lat-half)-y0)});
+  const fs=W<500?10:12;
+  const label=(t,x,y,bold)=>{ctx.font=`${bold?600:500} ${fs+(bold?1:0)}px Inter, system-ui, sans-serif`;ctx.lineWidth=3;ctx.strokeStyle=css('--halo');ctx.strokeText(t,x+5,y+4);ctx.fillStyle=css('--label');ctx.fillText(t,x+5,y+4)};
+  PLACES.forEach(([n,la,lo,b])=>{if(W<500&&!b)return;const x=X(lo),y=Y(la);ctx.fillStyle=css('--label');ctx.beginPath();ctx.arc(x,y,b?3:2.2,0,7);ctx.fill();label(n,x,y,b)});
+  PEAKS.forEach(([n,la,lo])=>{const x=X(lo),y=Y(la);ctx.fillStyle=css('--label');ctx.beginPath();ctx.moveTo(x,y-5);ctx.lineTo(x+4,y+2);ctx.lineTo(x-4,y+2);ctx.closePath();ctx.fill();if(W>=500)label(n,x,y,0)});
+}
+function at(ev){
+  const r=cv.getBoundingClientRect(); const px=ev.clientX-r.left, py=ev.clientY-r.top;
+  const lon=lo0+px/W*(lo1-lo0), lat=la1-py/H*(la1-la0);
+  let best=null,bd=1e9;
+  cells.forEach(c=>{const d=Math.abs(c.lon-lon)+Math.abs(c.lat-lat);if(d<bd){bd=d;best=c}});
+  return bd<=DATA.cell*1.1?best:null;
+}
+const pct=v=>Math.round(v*100)+' %';
+const n1=v=>(Math.round(v*10)/10).toLocaleString('it-IT');
+function pillStyle(i){const k=cls(i);return `background:${ramp(k+(i>=80?1:0))};color:${k>=2?'var(--bg)':'var(--fg)'}`}
+function card(c){
+  if(!c){
+    const top=forested.slice().sort((a,b)=>b.i-a.i).slice(0,6);
+    $('#card').innerHTML=`<h2>Dove guardare</h2><p class="hint">Tocca una cella della mappa per i dettagli. Le celle con indice più alto questa settimana:</p>
+    <ol class="top">${top.map((t,k)=>`<li><button data-k="${cells.indexOf(t)}">${near(t)}</button> · <b>${t.i}</b> · ${t.elev} m</li>`).join('')}</ol>
+    <p class="hint">“Vicino a” indica il paese più vicino dell'elenco sulla mappa, non il punto esatto.</p>`;
+    $('#card').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{sel=cells[+b.dataset.k];card(sel);draw()});
+    return;
+  }
+  const d=c.d==null?'':`<dt>Rispetto alla settimana prima</dt><dd style="color:${c.d>0?'var(--up)':c.d<0?'var(--down)':'inherit'}">${c.d>0?'+':''}${c.d}</dd>`;
+  const bar=(t,v)=>`<div class="bar"><span>${t}</span><i><u style="width:${Math.round(v*100)}%"></u></i><em>${n1(v)}</em></div>`;
+  $('#card').innerHTML=`<div><p class="hint">${near(c)} · ${c.lat.toFixed(2)} N, ${c.lon.toFixed(2)} E</p>
+  <div class="big"><span class="n">${c.forest<0.05?'–':c.i}</span>${c.forest<0.05?'<span class="pill" style="background:var(--nonforest)">poco bosco</span>':`<span class="pill" style="${pillStyle(c.i)}">${CLASSES[cls(c.i)][1]}</span>`}</div></div>
+  <div class="bars">${bar('Bosco',c.H)}${bar('Acqua',c.W)}${bar('Temperatura',c.T)}</div>
+  <dl>
+   <dt>Quota (centro cella)</dt><dd>${c.elev} m</dd>
+   <dt>Bosco</dt><dd>${pct(c.forest)} (latif. ${pct(c.broad)}, conif. ${pct(c.conif)})</dd>
+   <dt>Habitat probabile</dt><dd style="font-family:var(--f-body)">${c.hab}</dd>
+   <dt>Pioggia d'innesco</dt><dd>${n1(c.trig)} mm in 5 gg</dd>
+   <dt>Pioggia ultimi 14 gg</dt><dd>${n1(c.rain14)} mm</dd>
+   <dt>Bilancio idrico 14 gg</dt><dd>${c.bal14>0?'+':''}${n1(c.bal14)} mm</dd>
+   <dt>T media 10 gg (quota)</dt><dd>${n1(c.tm10)} °C</dd>
+   <dt>T minima 10 gg</dt><dd>${n1(c.tmin10)} °C</dd>
+   <dt>Notti di gelo (10 gg)</dt><dd>${c.frost}</dd>${d}
+  </dl>
+  <p class="sp"><b>In stagione, di solito:</b> ${c.sp}</p>
+  <div class="links"><a href="https://www.google.com/maps/@${c.lat},${c.lon},14z/data=!3m1!1e3" target="_blank" rel="noopener">Satellite</a><a href="https://www.openstreetmap.org/#map=14/${c.lat}/${c.lon}" target="_blank" rel="noopener">OpenStreetMap</a><a href="#" id="back">Torna all'elenco</a></div>`;
+  $('#back').onclick=e=>{e.preventDefault();sel=null;card(null);draw()};
+}
+function near(c){let b=null,bd=1e9;PLACES.forEach(p=>{const d=(p[1]-c.lat)**2+((p[2]-c.lon)*kx)**2;if(d<bd){bd=d;b=p}});const km=Math.round(Math.sqrt(bd)*111);return km<3?`Presso ${b[0]}`:`${km} km da ${b[0]}`}
+
+cv.addEventListener('mousemove',e=>{const c=at(e);if(c!==hover){hover=c;draw()}});
+cv.addEventListener('mouseleave',()=>{hover=null;draw()});
+cv.addEventListener('click',e=>{const c=at(e);sel=c;card(c);draw()});
+document.querySelectorAll('.seg').forEach(b=>b.onclick=()=>{layer=b.dataset.layer;document.querySelectorAll('.seg').forEach(x=>x.setAttribute('aria-pressed',x===b));legend();draw()});
+
+// grafico meteo
+function chart(){
+  const c=$('#chart'),g=c.getContext('2d'),r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;
+  const w=r.width,h=220; c.style.height=h+'px'; c.width=w*d; c.height=h*d; g.setTransform(d,0,0,d,0,0); g.clearRect(0,0,w,h);
+  const S=DATA.series,n=S.days.length,L=34,R=48,T=10,Bm=26,pw=w-L-R,ph=h-T-Bm;
+  const pmax=Math.max(10,Math.ceil(Math.max(...S.P)/10)*10);
+  const tmin=Math.floor(Math.min(...S.Tn)/5)*5, tmax=Math.ceil(Math.max(...S.Tx)/5)*5;
+  const xi=i=>L+(i+0.5)*pw/n, yp=v=>T+ph-v/pmax*ph, yt=v=>T+ph-(v-tmin)/(tmax-tmin)*ph;
+  g.font='11px "IBM Plex Mono", monospace'; g.fillStyle=css('--muted'); g.strokeStyle=css('--line'); g.lineWidth=1;
+  for(let v=tmin;v<=tmax;v+=5){const y=yt(v);g.beginPath();g.moveTo(L,y);g.lineTo(w-R,y);g.stroke();g.textAlign='right';g.fillText(v+'°',L-5,y+4)}
+  g.textAlign='left';[0,pmax/2,pmax].forEach(v=>g.fillText(v+' mm',w-R+4,yp(v)+4));
+  g.fillStyle=css('--rain'); g.globalAlpha=.55; const bw=Math.max(2,pw/n-2);
+  S.P.forEach((v,i)=>g.fillRect(xi(i)-bw/2,yp(v),bw,T+ph-yp(v))); g.globalAlpha=1;
+  [['Tx','--tmax'],['Tn','--tmin']].forEach(([k,col])=>{g.strokeStyle=css(col);g.lineWidth=2;g.beginPath();S[k].forEach((v,i)=>i?g.lineTo(xi(i),yt(v)):g.moveTo(xi(i),yt(v)));g.stroke()});
+  g.fillStyle=css('--muted'); g.textAlign='center';
+  const step=w<500?14:7;S.days.forEach((s,i)=>{if((i%step===0&&n-1-i>=step/2)||i===n-1)g.fillText(new Date(s+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short'}),xi(i),h-8)});
+  g.textAlign='left'; g.fillStyle=css('--tmax'); g.fillText('max',L+6,T+12); g.fillStyle=css('--tmin'); g.fillText('min',L+40,T+12); g.fillStyle=css('--rain'); g.fillText('pioggia',L+74,T+12);
+}
+legend(); card(null); draw(); chart();
+let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{draw();chart()},120)});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{legend();draw();chart()});
+new MutationObserver(()=>{legend();draw();chart()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+})();
+</script>
