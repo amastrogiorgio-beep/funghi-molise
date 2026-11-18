@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-gesture-handling@1.2.2/dist/leaflet-gesture-handling.min.css">
+<script src="https://unpkg.com/leaflet-gesture-handling@1.2.2/dist/leaflet-gesture-handling.min.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: testata compatta, mappa grande a sinistra con scheda della cella a destra (in colonna su telefono), poi andamento meteo e metodo. */
@@ -208,7 +210,8 @@ $('#foot').innerHTML=`Generata il ${new Date(DATA.generated).toLocaleString('it-
 // mappa con sfondo reale (Leaflet)
 const B=DATA.boundary.type==='Polygon'?[DATA.boundary.coordinates]:DATA.boundary.coordinates;
 const kx=Math.cos(41.7*Math.PI/180);
-const map=L.map('map',{preferCanvas:true,zoomSnap:0.5,scrollWheelZoom:true});
+const touch=matchMedia('(pointer:coarse)').matches;
+const map=L.map('map',{preferCanvas:true,zoomSnap:0.5,scrollWheelZoom:true,gestureHandling:touch,gestureHandlingOptions:{text:{touch:'Usa due dita per spostare la mappa',scroll:'Usa ctrl + rotellina per ingrandire',scrollMac:'Usa ⌘ + rotellina per ingrandire'},duration:1200}});
 const BASE={
   sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Immagini © Esri, Maxar, Earthstar Geographics'}),
   osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'})
