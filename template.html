@@ -75,6 +75,7 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--f-data);font-size:13px;text
 .bar em{font-style:normal;font-family:var(--f-data);text-align:right}
 .links{display:flex;gap:14px;font-size:14px;flex-wrap:wrap}
 .search{display:flex;gap:6px}
+.sub3{font-family:var(--f-display);font-weight:500;font-size:15px;margin:6px 0 0;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .search input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--fg)}
 .search input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .locbtn{font:600 13px var(--f-body);background:#fff;color:#1d2621;border:2px solid rgba(0,0,0,.2);border-radius:6px;padding:8px 12px;cursor:pointer;background-clip:padding-box}
@@ -238,7 +239,7 @@ const rings=[];(DATA.boundary.type==='Polygon'?[DATA.boundary.coordinates]:DATA.
 L.polygon([[[-89,-179],[-89,179],[89,179],[89,-179]],...rings],{pane:'mask',renderer:L.svg({pane:'mask'}),stroke:false,fillColor:css('--mask'),fillOpacity:1,interactive:false}).addTo(map);
 map.setMaxBounds(region.getBounds().pad(0.15));
 map.setMinZoom(Math.floor(map.getZoom()*2)/2-0.5);
-let pick=null;
+let pick=null, myPos=null;
 let opacity=0.55;
 const rects=cells.map(c=>{const r=L.rectangle([[c.lat-half,c.lon-half],[c.lat+half,c.lon+half]],{weight:0,fillOpacity:0});r.cell=c;r.on('click',e=>{pick=e.latlng;select(c)});r.on('mouseover',()=>{if(c!==sel)r.setStyle({weight:1.5,color:'#1d2621'})});r.on('mouseout',()=>{if(c!==sel)r.setStyle({weight:0})});return r.addTo(map)});
 function select(c,fly){if(fly||!c)pick=null;sel=c;card(c);restyle();if(c&&fly)map.flyTo([c.lat,c.lon],12,{duration:.8});
@@ -275,11 +276,20 @@ function pillStyle(i){const k=cls(i);return `background:${ramp(k+(i>=80?1:0))};c
 function card(c){
   $('#card').classList.toggle('open',!!c);
   if(!c){
-    const top=forested.slice().sort((a,b)=>b.i-a.i).slice(0,6);
-    $('#card').innerHTML=`<h2>Dove guardare</h2><p class="hint">Ingrandisci la mappa e tocca una cella colorata per i dettagli. Le celle con indice più alto questa settimana:</p>
-    <ol class="top">${top.map((t,k)=>`<li><button data-k="${cells.indexOf(t)}">${near(t)}</button> · <b>${t.i}</b> · ${t.elev} m</li>`).join('')}</ol>
-    <p class="hint">“Vicino a” indica il paese più vicino dell'elenco sulla mappa, non il punto esatto.</p>`;
+    const item=(c,label)=>`<li><button data-k="${cells.indexOf(c)}">${label}</button> · <b>${c.i}</b> <span class="hint">${c.elev} m</span></li>`;
+    const top=forested.slice().sort((a,b)=>b.i-a.i||b.forest-a.forest).slice(0,8);
+    let mine='';
+    if(myPos){
+      const around=forested.map(c=>({c,km:R(myPos.lat,myPos.lng,c.lat,c.lon)})).filter(o=>o.km<=30).sort((a,b)=>b.c.i-a.c.i||a.km-b.km).slice(0,8);
+      mine=around.length?`<ol class="top">${around.map(o=>item(o.c,`${n1(o.km)} km ${dir(myPos.lat,myPos.lng,o.c)}`)).join('')}</ol>`:'<p class="hint">Nessuna cella con bosco entro 30 km dalla tua posizione: sei fuori dal Molise o lontano dal confine?</p>';
+    } else mine=`<button class="seg" id="usepos" type="button">Usa la mia posizione</button><p class="hint" id="poserr"></p>`;
+    $('#card').innerHTML=`<h2>Dove guardare</h2>
+    <h3 class="sub3">Vicino a te, entro 30 km</h3>${mine}
+    <h3 class="sub3">In tutta la regione</h3>
+    <ol class="top">${top.map(t=>item(t,near(t))).join('')}</ol>
+    <p class="hint">A parità di indice viene prima la cella più boscosa (o più vicina). Tocca una voce per vederla sulla mappa, oppure tocca direttamente una cella colorata.</p>`;
     $('#card').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{select(cells[+b.dataset.k],true);if(matchMedia('(max-width:860px)').matches)$('#map').scrollIntoView({behavior:'smooth',block:'start'})});
+    if($('#usepos'))$('#usepos').onclick=()=>{$('#usepos').textContent='Cerco la posizione…';map.locate({setView:false,enableHighAccuracy:true})};
     return;
   }
   const d=c.d==null?'':`<dt>Rispetto alla settimana prima</dt><dd style="color:${c.d>0?'var(--up)':c.d<0?'var(--down)':'inherit'}">${c.d>0?'+':''}${c.d}</dd>`;
@@ -347,8 +357,9 @@ document.querySelectorAll('.seg[data-base]').forEach(b=>b.onclick=()=>{map.remov
 $('#op').oninput=e=>{opacity=+e.target.value/100;restyle()};
 const Loc=L.Control.extend({options:{position:'topright'},onAdd(){const b=L.DomUtil.create('button','locbtn');b.id='loc';b.type='button';b.textContent='Dove sono';L.DomEvent.disableClickPropagation(b);b.onclick=()=>map.locate({setView:true,maxZoom:13});return b}});
 map.addControl(new Loc());
-map.on('locationfound',e=>L.circleMarker(e.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:1}).addTo(map));
-map.on('locationerror',()=>{$('#loc').textContent='Posizione non disponibile'});
+let meMk=null;
+map.on('locationfound',e=>{myPos=e.latlng;if(meMk)map.removeLayer(meMk);meMk=L.circleMarker(e.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:1}).addTo(map).bindTooltip('Tu sei qui');if(!sel&&!placeMk)card(null)});
+map.on('locationerror',()=>{$('#loc').textContent='Posizione non disponibile';if($('#usepos')){$('#usepos').textContent='Usa la mia posizione';$('#poserr').textContent='Posizione non disponibile: controlla di aver dato il permesso al browser.'}});
 
 // grafico meteo
 function chart(){
