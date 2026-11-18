@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3f5f1">
 <title>Funghi in Molise</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -9,7 +15,7 @@
 :root{
   --bg:#f3f5f1; --surface:#ffffff; --fg:#1d2621; --muted:#5d6a62; --line:#d6ddd6;
   --accent:#7a4a1f;           /* bruno "cappello di porcino" per link e selezione */
-  --nonforest:#e3e7e1; --border-region:#2b3a31; --label:#1d2621; --halo:rgba(255,255,255,.85);
+  --nonforest:#e3e7e1; --mask:#dfe4df; --border-region:#2b3a31; --label:#1d2621; --halo:rgba(255,255,255,.85);
   --rain:#4f7fa8; --tmax:#c0603a; --tmin:#4f7fa8;
   --c0:#eef0d8; --c1:#c7d98a; --c2:#7fb35e; --c3:#2f7d4a; --c4:#0f4a35;
   --up:#2f7d4a; --down:#b04a2f;
@@ -19,18 +25,18 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#141a17; --surface:#1c2420; --fg:#e4ebe6; --muted:#9aa89f; --line:#2f3a34;
-  --accent:#e0a96d; --nonforest:#252e29; --border-region:#cfdad2; --label:#e4ebe6; --halo:rgba(20,26,23,.85);
+  --accent:#e0a96d; --nonforest:#252e29; --mask:#1a201d; --border-region:#cfdad2; --label:#e4ebe6; --halo:rgba(20,26,23,.85);
   --rain:#7fb0d9; --tmax:#e48a63; --tmin:#7fb0d9;
   --c0:#2c3526; --c1:#55703a; --c2:#7fae55; --c3:#b4d97a; --c4:#f0f7c4;
   --up:#8fd18a; --down:#ee8a6d; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#141a17; --surface:#1c2420; --fg:#e4ebe6; --muted:#9aa89f; --line:#2f3a34;
-  --accent:#e0a96d; --nonforest:#252e29; --border-region:#cfdad2; --label:#e4ebe6; --halo:rgba(20,26,23,.85);
+  --accent:#e0a96d; --nonforest:#252e29; --mask:#1a201d; --border-region:#cfdad2; --label:#e4ebe6; --halo:rgba(20,26,23,.85);
   --rain:#7fb0d9; --tmax:#e48a63; --tmin:#7fb0d9;
   --c0:#2c3526; --c1:#55703a; --c2:#7fae55; --c3:#b4d97a; --c4:#f0f7c4;
   --up:#8fd18a; --down:#ee8a6d; color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
 .wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
 header{display:grid;gap:6px}
 h1{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,4.5vw,40px);line-height:1.05;margin:0;letter-spacing:-.01em;text-wrap:balance}
@@ -41,7 +47,7 @@ h2{font-family:var(--f-display);font-weight:500;font-size:20px;margin:0 0 10px;t
 .kpis span{color:var(--muted)}
 .notice{border-left:3px solid var(--accent);padding:8px 12px;background:var(--surface);font-size:14px;color:var(--muted);margin:4px 0 0}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:20px;align-items:start}
-@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+
 .mapbox{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;gap:10px;min-width:0}
 .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .toolbar .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:4px}
@@ -66,6 +72,9 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--f-data);font-size:13px;text
 .bar i u{position:absolute;inset:0 auto 0 0;background:var(--c3)}
 .bar em{font-style:normal;font-family:var(--f-data);text-align:right}
 .links{display:flex;gap:14px;font-size:14px;flex-wrap:wrap}
+.locbtn{font:600 13px var(--f-body);background:#fff;color:#1d2621;border:2px solid rgba(0,0,0,.2);border-radius:6px;padding:8px 12px;cursor:pointer;background-clip:padding-box}
+.nav{display:block;text-align:center;background:#1a73e8;color:#fff;text-decoration:none;font-weight:600;padding:12px 14px;border-radius:6px}
+.nav:hover{background:#1557b0}
 a{color:var(--accent)}
 .sp{font-size:14px;margin:0}
 .hint{font-size:13px;color:var(--muted);margin:0}
@@ -80,14 +89,36 @@ code,.formula{font-family:var(--f-data);font-size:13px}
 .formula{display:block;background:var(--bg);border:1px solid var(--line);padding:10px 12px;border-radius:4px;overflow-x:auto;white-space:pre}
 footer{font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:860px){
+  .main{grid-template-columns:minmax(0,1fr)}
+  .wrap{gap:18px;padding-block:12px 40px}
+  h1{font-size:26px}
+  .kpis{font-size:13px;gap:2px 14px;margin-top:2px}
+  .kpis b{font-size:14px}
+  .mapbox{padding:0;border:0;background:transparent;gap:8px}
+  .toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .toolbar::-webkit-scrollbar{display:none}
+  .toolbar .lbl{display:none}
+  .seg{flex:none;min-height:40px;padding:8px 14px;font-size:14px}
+  .op{flex:none}
+  #map{height:calc(100svh - 190px);min-height:360px;border-radius:8px}
+  .legend{font-size:12px;gap:4px 10px}
+  aside.card.open{position:fixed;left:0;right:0;bottom:0;z-index:1000;max-height:55svh;overflow-y:auto;border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.25);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+  aside.card.open::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 4px}
+  .nav{padding:14px;font-size:16px}
+  .links a{padding:6px 0}
+}
+.close{display:none;position:absolute;top:10px;right:max(12px,env(safe-area-inset-right,0px));font:inherit;font-size:14px;background:var(--surface);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:6px 12px;cursor:pointer}
+@media (max-width:860px){aside.card.open .close{display:inline-block}}
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header>
     <h1>Funghi in Molise</h1>
     <p class="sub" id="period"></p>
     <div class="kpis" id="kpis"></div>
-    <p class="notice">Indice euristico, non una probabilità misurata: combina bosco, pioggia e temperatura con soglie dichiarate qui sotto, e non è tarato su ritrovamenti reali. Usalo per scegliere dove guardare, non per sapere cosa troverai.</p>
   </header>
 
   <div class="main">
@@ -102,11 +133,9 @@ footer{font-size:12px;color:var(--muted)}
       </div>
       <div class="toolbar" role="group" aria-label="Sfondo">
         <span class="lbl">Sfondo</span>
-        <button class="seg" data-base="topo" aria-pressed="true">Topografica</button>
-        <button class="seg" data-base="sat" aria-pressed="false">Satellite</button>
+        <button class="seg" data-base="sat" aria-pressed="true">Satellite</button>
         <button class="seg" data-base="osm" aria-pressed="false">Stradale</button>
-        <label class="op" for="op">Trasparenza celle <input type="range" id="op" min="15" max="90" value="55"></label>
-        <button class="seg" id="loc">Dove sono</button>
+        <label class="op" for="op">Trasparenza <input type="range" id="op" min="15" max="90" value="55"></label>
       </div>
       <div id="map" aria-label="Mappa del Molise con le celle colorate per indice"></div>
       <div class="legend" id="legend"></div>
@@ -114,6 +143,7 @@ footer{font-size:12px;color:var(--muted)}
 
     <aside class="card" id="card" aria-live="polite"></aside>
   </div>
+    <p class="notice">Indice euristico, non una probabilità misurata: combina bosco, pioggia e temperatura con soglie dichiarate qui sotto, e non è tarato su ritrovamenti reali. Usalo per scegliere dove guardare, non per sapere cosa troverai.</p>
 
   <section class="panel">
     <h2>Pioggia e temperature degli ultimi 40 giorni</h2>
@@ -180,16 +210,25 @@ const B=DATA.boundary.type==='Polygon'?[DATA.boundary.coordinates]:DATA.boundary
 const kx=Math.cos(41.7*Math.PI/180);
 const map=L.map('map',{preferCanvas:true,zoomSnap:0.5,scrollWheelZoom:true});
 const BASE={
-  topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'Mappa © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA), dati © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}),
   sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Immagini © Esri, Maxar, Earthstar Geographics'}),
   osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'})
 };
-let base=BASE.topo.addTo(map);
+let base=BASE.sat.addTo(map);
 const region=L.geoJSON(DATA.boundary,{style:{color:'#1d2621',weight:2,fill:false},interactive:false}).addTo(map);
 map.fitBounds(region.getBounds(),{padding:[8,8]});
+// maschera: copre tutto cio' che sta fuori dal Molise
+map.createPane('mask').style.zIndex=350;
+const rings=[];(DATA.boundary.type==='Polygon'?[DATA.boundary.coordinates]:DATA.boundary.coordinates).forEach(p=>p.forEach(r=>rings.push(r.map(([x,y])=>[y,x]))));
+L.polygon([[[-89,-179],[-89,179],[89,179],[89,-179]],...rings],{pane:'mask',renderer:L.svg({pane:'mask'}),stroke:false,fillColor:css('--mask'),fillOpacity:1,interactive:false}).addTo(map);
+map.setMaxBounds(region.getBounds().pad(0.15));
+map.setMinZoom(Math.floor(map.getZoom()*2)/2-0.5);
+let pick=null;
 let opacity=0.55;
-const rects=cells.map(c=>{const r=L.rectangle([[c.lat-half,c.lon-half],[c.lat+half,c.lon+half]],{weight:0,fillOpacity:0});r.cell=c;r.on('click',()=>select(c));r.on('mouseover',()=>{if(c!==sel)r.setStyle({weight:1.5,color:'#1d2621'})});r.on('mouseout',()=>{if(c!==sel)r.setStyle({weight:0})});return r.addTo(map)});
-function select(c,fly){sel=c;card(c);restyle();if(c&&fly)map.flyTo([c.lat,c.lon],12,{duration:.8})}
+const rects=cells.map(c=>{const r=L.rectangle([[c.lat-half,c.lon-half],[c.lat+half,c.lon+half]],{weight:0,fillOpacity:0});r.cell=c;r.on('click',e=>{pick=e.latlng;select(c)});r.on('mouseover',()=>{if(c!==sel)r.setStyle({weight:1.5,color:'#1d2621'})});r.on('mouseout',()=>{if(c!==sel)r.setStyle({weight:0})});return r.addTo(map)});
+function select(c,fly){if(fly||!c)pick=null;sel=c;card(c);restyle();if(c&&fly)map.flyTo([c.lat,c.lon],12,{duration:.8});
+  if(c&&matchMedia('(max-width:860px)').matches){const top=$('#map').getBoundingClientRect().top;if(top>8||top<-40)window.scrollBy({top:top-8,behavior:'smooth'})}
+  if(c&&!fly&&matchMedia('(max-width:860px)').matches&&map.getZoom()<11)map.setView(pick||[c.lat,c.lon],11,{animate:false});
+  if(c&&matchMedia('(max-width:860px)').matches)setTimeout(()=>{const p=map.latLngToContainerPoint(pick||[c.lat,c.lon]);const ty=map.getSize().y*0.22;if(p.y>ty)map.panBy([0,p.y-ty])},fly?900:50)}
 function restyle(){rects.forEach(r=>{const c=r.cell,col=color(c);r.setStyle({fillColor:col||'#000',fillOpacity:col?opacity:0,weight:c===sel?3:0,color:c===sel?'#7a1fd1':'#1d2621'})})}
 const draw=restyle;
 const PLACES=[["Campobasso",41.561,14.668,1],["Isernia",41.594,14.233,1],["Termoli",42.001,14.995,1],["Agnone",41.810,14.376,0],["Venafro",41.484,14.046,0],["Bojano",41.484,14.472,0],["Larino",41.801,14.913,0],["Capracotta",41.833,14.266,0],["Frosolone",41.600,14.449,0],["Trivento",41.783,14.552,0],["Riccia",41.484,14.836,0],["Sepino",41.408,14.619,0],["Montenero di B.",41.961,14.781,0]];
@@ -218,18 +257,21 @@ const pct=v=>Math.round(v*100)+' %';
 const n1=v=>(Math.round(v*10)/10).toLocaleString('it-IT');
 function pillStyle(i){const k=cls(i);return `background:${ramp(k+(i>=80?1:0))};color:${k>=2?'var(--bg)':'var(--fg)'}`}
 function card(c){
+  $('#card').classList.toggle('open',!!c);
   if(!c){
     const top=forested.slice().sort((a,b)=>b.i-a.i).slice(0,6);
     $('#card').innerHTML=`<h2>Dove guardare</h2><p class="hint">Ingrandisci la mappa e tocca una cella colorata per i dettagli. Le celle con indice più alto questa settimana:</p>
     <ol class="top">${top.map((t,k)=>`<li><button data-k="${cells.indexOf(t)}">${near(t)}</button> · <b>${t.i}</b> · ${t.elev} m</li>`).join('')}</ol>
     <p class="hint">“Vicino a” indica il paese più vicino dell'elenco sulla mappa, non il punto esatto.</p>`;
-    $('#card').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>select(cells[+b.dataset.k],true));
+    $('#card').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{select(cells[+b.dataset.k],true);if(matchMedia('(max-width:860px)').matches)$('#map').scrollIntoView({behavior:'smooth',block:'start'})});
     return;
   }
   const d=c.d==null?'':`<dt>Rispetto alla settimana prima</dt><dd style="color:${c.d>0?'var(--up)':c.d<0?'var(--down)':'inherit'}">${c.d>0?'+':''}${c.d}</dd>`;
   const bar=(t,v)=>`<div class="bar"><span>${t}</span><i><u style="width:${Math.round(v*100)}%"></u></i><em>${n1(v)}</em></div>`;
-  $('#card').innerHTML=`<div><p class="hint">${near(c)} · ${c.lat.toFixed(2)} N, ${c.lon.toFixed(2)} E</p>
+  $('#card').innerHTML=`<button class="close" id="close" aria-label="Chiudi la scheda">Chiudi ✕</button><div><p class="hint">${near(c)} · ${c.lat.toFixed(2)} N, ${c.lon.toFixed(2)} E</p>
   <div class="big"><span class="n">${c.forest<0.05?'–':c.i}</span>${c.forest<0.05?'<span class="pill" style="background:var(--nonforest)">poco bosco</span>':`<span class="pill" style="${pillStyle(c.i)}">${CLASSES[cls(c.i)][1]}</span>`}</div></div>
+  <a class="nav" href="https://www.google.com/maps/dir/?api=1&destination=${dest(c)}&travelmode=driving" target="_blank" rel="noopener">Portami qui con Google Maps</a>
+  <p class="hint">${pick?'Destinazione: il punto che hai toccato':'Destinazione: il centro della cella'} (${dest(c).replace(',',', ')}). Il navigatore ti porta alla strada più vicina; l'ultimo tratto nel bosco è a piedi.</p>
   <div class="bars">${bar('Bosco',c.H)}${bar('Acqua',c.W)}${bar('Temperatura',c.T)}</div>
   <dl>
    <dt>Quota (centro cella)</dt><dd>${c.elev} m</dd>
@@ -243,15 +285,18 @@ function card(c){
    <dt>Notti di gelo (10 gg)</dt><dd>${c.frost}</dd>${d}
   </dl>
   <p class="sp"><b>In stagione, di solito:</b> ${c.sp}</p>
-  <div class="links"><a href="https://www.google.com/maps/@${c.lat},${c.lon},14z/data=!3m1!1e3" target="_blank" rel="noopener">Satellite</a><a href="https://www.openstreetmap.org/#map=14/${c.lat}/${c.lon}" target="_blank" rel="noopener">OpenStreetMap</a><a href="#" id="back">Torna all'elenco</a></div>`;
+  <div class="links"><a href="https://www.google.com/maps/search/?api=1&query=${dest(c)}" target="_blank" rel="noopener">Vedi il punto in Google Maps</a><a href="#" id="back">Torna all'elenco</a></div>`;
+  $('#close').onclick=()=>select(null);
   $('#back').onclick=e=>{e.preventDefault();select(null);map.fitBounds(region.getBounds(),{padding:[8,8]})};
 }
+function dest(c){const p=pick||{lat:c.lat,lng:c.lon};return p.lat.toFixed(5)+','+p.lng.toFixed(5)}
 function near(c){let b=null,bd=1e9;PLACES.forEach(p=>{const d=(p[1]-c.lat)**2+((p[2]-c.lon)*kx)**2;if(d<bd){bd=d;b=p}});const km=Math.round(Math.sqrt(bd)*111);return km<3?`Presso ${b[0]}`:`${km} km da ${b[0]}`}
 
 document.querySelectorAll('.seg[data-layer]').forEach(b=>b.onclick=()=>{layer=b.dataset.layer;document.querySelectorAll('.seg[data-layer]').forEach(x=>x.setAttribute('aria-pressed',x===b));legend();draw()});
 document.querySelectorAll('.seg[data-base]').forEach(b=>b.onclick=()=>{map.removeLayer(base);base=BASE[b.dataset.base].addTo(map);document.querySelectorAll('.seg[data-base]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
 $('#op').oninput=e=>{opacity=+e.target.value/100;restyle()};
-$('#loc').onclick=()=>map.locate({setView:true,maxZoom:13});
+const Loc=L.Control.extend({options:{position:'topright'},onAdd(){const b=L.DomUtil.create('button','locbtn');b.id='loc';b.type='button';b.textContent='Dove sono';L.DomEvent.disableClickPropagation(b);b.onclick=()=>map.locate({setView:true,maxZoom:13});return b}});
+map.addControl(new Loc());
 map.on('locationfound',e=>L.circleMarker(e.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:1}).addTo(map));
 map.on('locationerror',()=>{$('#loc').textContent='Posizione non disponibile'});
 
@@ -279,3 +324,5 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{chart(
 new MutationObserver(()=>{chart()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 })();
 </script>
+</body>
+</html>
