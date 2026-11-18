@@ -74,6 +74,9 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--f-data);font-size:13px;text
 .bar i u{position:absolute;inset:0 auto 0 0;background:var(--c3)}
 .bar em{font-style:normal;font-family:var(--f-data);text-align:right}
 .links{display:flex;gap:14px;font-size:14px;flex-wrap:wrap}
+.search{display:flex;gap:6px}
+.search input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--fg)}
+.search input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .locbtn{font:600 13px var(--f-body);background:#fff;color:#1d2621;border:2px solid rgba(0,0,0,.2);border-radius:6px;padding:8px 12px;cursor:pointer;background-clip:padding-box}
 .nav{display:block;text-align:center;background:#1a73e8;color:#fff;text-decoration:none;font-weight:600;padding:12px 14px;border-radius:6px}
 .nav:hover{background:#1557b0}
@@ -139,6 +142,10 @@ footer{font-size:12px;color:var(--muted)}
         <button class="seg" data-base="osm" aria-pressed="false">Stradale</button>
         <label class="op" for="op">Trasparenza <input type="range" id="op" min="15" max="90" value="55"></label>
       </div>
+      <form class="search" id="sform" role="search">
+        <input type="search" id="q" placeholder="Cerca un paese o una località del Molise" autocomplete="off" enterkeyhint="search" aria-label="Cerca un luogo">
+        <button class="seg" type="submit">Cerca</button>
+      </form>
       <div id="map" aria-label="Mappa del Molise con le celle colorate per indice"></div>
       <div class="legend" id="legend"></div>
     </div>
@@ -216,11 +223,17 @@ const BASE={
   sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Immagini © Esri, Maxar, Earthstar Geographics'}),
   osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'})
 };
-let base=BASE.sat.addTo(map);
-const region=L.geoJSON(DATA.boundary,{style:{color:'#1d2621',weight:2,fill:false},interactive:false}).addTo(map);
+map.createPane('labels').style.zIndex=450; map.getPane('labels').style.pointerEvents='none';
+map.createPane('edge').style.zIndex=470; map.getPane('edge').style.pointerEvents='none';
+const LABELS=L.layerGroup([
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{pane:'labels',maxZoom:18,opacity:.7}),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{pane:'labels',maxZoom:18})
+]);
+let base=BASE.sat.addTo(map); LABELS.addTo(map);
+const region=L.geoJSON(DATA.boundary,{pane:'edge',style:{color:'#ffffff',weight:2,fill:false},interactive:false}).addTo(map);
 map.fitBounds(region.getBounds(),{padding:[8,8]});
 // maschera: copre tutto cio' che sta fuori dal Molise
-map.createPane('mask').style.zIndex=350;
+map.createPane('mask').style.zIndex=460; map.getPane('mask').style.pointerEvents='none';
 const rings=[];(DATA.boundary.type==='Polygon'?[DATA.boundary.coordinates]:DATA.boundary.coordinates).forEach(p=>p.forEach(r=>rings.push(r.map(([x,y])=>[y,x]))));
 L.polygon([[[-89,-179],[-89,179],[89,179],[89,-179]],...rings],{pane:'mask',renderer:L.svg({pane:'mask'}),stroke:false,fillColor:css('--mask'),fillOpacity:1,interactive:false}).addTo(map);
 map.setMaxBounds(region.getBounds().pad(0.15));
@@ -293,10 +306,44 @@ function card(c){
   $('#back').onclick=e=>{e.preventDefault();select(null);map.fitBounds(region.getBounds(),{padding:[8,8]})};
 }
 function dest(c){const p=pick||{lat:c.lat,lng:c.lon};return p.lat.toFixed(5)+','+p.lng.toFixed(5)}
+const R=(a,b,c,d)=>{const x=(d-b)*Math.cos((a+c)/2*Math.PI/180),y=c-a;return Math.sqrt(x*x+y*y)*111.2};
+let placeMk=null;
+const esc=t=>String(t).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+async function search(q){
+  $('#card').classList.add('open');
+  $('#card').innerHTML=`<button class="close" id="close">Chiudi ✕</button><p class="hint">Cerco “${esc(q)}”…</p>`;$('#close').onclick=()=>select(null);
+  try{
+    const u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=it&countrycodes=it&bounded=1&viewbox=13.90,42.10,15.20,41.33&q='+encodeURIComponent(q);
+    const r=await fetch(u,{headers:{'Accept':'application/json'}});const res=await r.json();
+    if(!res.length){$('#card').innerHTML=`<button class="close" id="close">Chiudi ✕</button><p>Nessun luogo trovato in Molise per “${esc(q)}”. Prova con il nome del comune.</p>`;$('#close').onclick=()=>select(null);return}
+    if(res.length===1)return place(res[0]);
+    $('#card').innerHTML=`<button class="close" id="close">Chiudi ✕</button><h2>Quale intendi?</h2><ol class="top">${res.map((p,k)=>`<li><button data-p="${k}">${esc(p.display_name.split(',').slice(0,3).join(','))}</button></li>`).join('')}</ol>`;
+    $('#close').onclick=()=>select(null);
+    $('#card').querySelectorAll('button[data-p]').forEach(b=>b.onclick=()=>place(res[+b.dataset.p]));
+  }catch(e){$('#card').innerHTML=`<button class="close" id="close">Chiudi ✕</button><p>La ricerca non risponde in questo momento. Riprova tra poco.</p>`;$('#close').onclick=()=>select(null)}
+}
+function place(p){
+  const lat=+p.lat,lon=+p.lon,name=p.name||p.display_name.split(',')[0];
+  if(placeMk)map.removeLayer(placeMk);
+  placeMk=L.marker([lat,lon],{title:name}).addTo(map).bindTooltip(name,{permanent:true,direction:'top',offset:[-15,-12]});
+  sel=null;restyle();
+  map.flyTo([lat,lon],12,{duration:.8});
+  const around=cells.filter(c=>c.forest>=0.05).map(c=>({c,km:R(lat,lon,c.lat,c.lon)})).filter(o=>o.km<=8).sort((a,b)=>b.c.i-a.c.i||a.km-b.km).slice(0,8);
+  const here=cells.find(c=>Math.abs(c.lat-lat)<=half&&Math.abs(c.lon-lon)<=half);
+  $('#card').classList.add('open');
+  $('#card').innerHTML=`<button class="close" id="close">Chiudi ✕</button><h2>${esc(name)}</h2>
+   <p class="hint">${here?`La cella del paese: indice <b>${here.forest<0.05?'– (poco bosco)':here.i}</b>, quota ${here.elev} m.`:'Il luogo è fuori dalle celle calcolate.'} Le celle con bosco entro 8 km, dalla migliore:</p>
+   ${around.length?`<ol class="top">${around.map(o=>`<li><button data-k="${cells.indexOf(o.c)}">${n1(o.km)} km ${dir(lat,lon,o.c)}</button> · <b>${o.c.i}</b> <span class="hint">${CLASSES[cls(o.c.i)][1].toLowerCase()} · ${o.c.elev} m</span></li>`).join('')}</ol>`:'<p>Nessuna cella con bosco entro 8 km.</p>'}`;
+  $('#close').onclick=()=>{if(placeMk){map.removeLayer(placeMk);placeMk=null}select(null)};
+  $('#card').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>select(cells[+b.dataset.k],true));
+  if(matchMedia('(max-width:860px)').matches){const top=$('#map').getBoundingClientRect().top;window.scrollBy({top:top-8,behavior:'smooth'});$('#q').blur()}
+}
+function dir(lat,lon,c){const a=(Math.atan2((c.lon-lon)*Math.cos(lat*Math.PI/180),c.lat-lat)*180/Math.PI+360)%360;return 'a '+['nord','nord-est','est','sud-est','sud','sud-ovest','ovest','nord-ovest'][Math.round(a/45)%8]}
+$('#sform').addEventListener('submit',e=>{e.preventDefault();const q=$('#q').value.trim();if(q)search(q)});
 function near(c){let b=null,bd=1e9;PLACES.forEach(p=>{const d=(p[1]-c.lat)**2+((p[2]-c.lon)*kx)**2;if(d<bd){bd=d;b=p}});const km=Math.round(Math.sqrt(bd)*111);return km<3?`Presso ${b[0]}`:`${km} km da ${b[0]}`}
 
 document.querySelectorAll('.seg[data-layer]').forEach(b=>b.onclick=()=>{layer=b.dataset.layer;document.querySelectorAll('.seg[data-layer]').forEach(x=>x.setAttribute('aria-pressed',x===b));legend();draw()});
-document.querySelectorAll('.seg[data-base]').forEach(b=>b.onclick=()=>{map.removeLayer(base);base=BASE[b.dataset.base].addTo(map);document.querySelectorAll('.seg[data-base]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+document.querySelectorAll('.seg[data-base]').forEach(b=>b.onclick=()=>{map.removeLayer(base);base=BASE[b.dataset.base].addTo(map);if(b.dataset.base==='sat')LABELS.addTo(map);else map.removeLayer(LABELS);document.querySelectorAll('.seg[data-base]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
 $('#op').oninput=e=>{opacity=+e.target.value/100;restyle()};
 const Loc=L.Control.extend({options:{position:'topright'},onAdd(){const b=L.DomUtil.create('button','locbtn');b.id='loc';b.type='button';b.textContent='Dove sono';L.DomEvent.disableClickPropagation(b);b.onclick=()=>map.locate({setView:true,maxZoom:13});return b}});
 map.addControl(new Loc());
