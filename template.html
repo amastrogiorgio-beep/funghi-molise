@@ -1,6 +1,8 @@
 <title>Funghi in Molise</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: testata compatta, mappa grande a sinistra con scheda della cella a destra (in colonna su telefono), poi andamento meteo e metodo. */
@@ -46,7 +48,10 @@ h2{font-family:var(--f-display);font-weight:500;font-size:20px;margin:0 0 10px;t
 .seg{font:inherit;font-size:13px;border:1px solid var(--line);background:transparent;color:var(--fg);padding:5px 10px;border-radius:999px;cursor:pointer}
 .seg[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .seg:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-canvas#map{width:100%;display:block;touch-action:manipulation;cursor:crosshair}
+#map{width:100%;height:min(72vh,680px);min-height:380px;border-radius:4px;background:var(--nonforest);z-index:0}
+.leaflet-container{font-family:var(--f-body)}
+.op{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.op input{width:110px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted);align-items:center}
 .sw{display:inline-block;width:14px;height:14px;border-radius:2px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
 aside.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;min-width:0}
@@ -95,7 +100,15 @@ footer{font-size:12px;color:var(--muted)}
         <button class="seg" id="l-f" data-layer="forest" aria-pressed="false">Bosco</button>
         <button class="seg" id="l-d" data-layer="d" aria-pressed="false" hidden>Variazione</button>
       </div>
-      <canvas id="map" aria-label="Mappa del Molise a celle colorate per indice"></canvas>
+      <div class="toolbar" role="group" aria-label="Sfondo">
+        <span class="lbl">Sfondo</span>
+        <button class="seg" data-base="topo" aria-pressed="true">Topografica</button>
+        <button class="seg" data-base="sat" aria-pressed="false">Satellite</button>
+        <button class="seg" data-base="osm" aria-pressed="false">Stradale</button>
+        <label class="op" for="op">Trasparenza celle <input type="range" id="op" min="15" max="90" value="55"></label>
+        <button class="seg" id="loc">Dove sono</button>
+      </div>
+      <div id="map" aria-label="Mappa del Molise con le celle colorate per indice"></div>
       <div class="legend" id="legend"></div>
     </div>
 
@@ -162,65 +175,44 @@ $('#kpis').innerHTML=`<div><span>Indice medio nei boschi</span> <b>${Math.round(
 if(DATA.prev){$('#l-d').hidden=false}
 $('#foot').innerHTML=`Generata il ${new Date(DATA.generated).toLocaleString('it-IT',{dateStyle:'medium',timeStyle:'short'})}. Fonti: Open-Meteo Historical API (meteo e quota DEM 90 m), Copernicus HRL Dominant Leaf Type e Tree Cover Density 2018, confini Eurostat NUTS 2024 via EEA.`;
 
-// proiezione
+// mappa con sfondo reale (Leaflet)
 const B=DATA.boundary.type==='Polygon'?[DATA.boundary.coordinates]:DATA.boundary.coordinates;
-let lo0=180,lo1=-180,la0=90,la1=-90;
-B.forEach(p=>p[0].forEach(([x,y])=>{lo0=Math.min(lo0,x);lo1=Math.max(lo1,x);la0=Math.min(la0,y);la1=Math.max(la1,y)}));
-lo0-=0.03;lo1+=0.03;la0-=0.03;la1+=0.03;
-const kx=Math.cos((la0+la1)/2*Math.PI/180);
-const aspect=(la1-la0)/((lo1-lo0)*kx);
-const cv=$('#map'), ctx=cv.getContext('2d');
-let W=0,H=0,dpr=1;
-const X=lon=>(lon-lo0)/(lo1-lo0)*W, Y=lat=>(la1-lat)/(la1-la0)*H;
-
+const kx=Math.cos(41.7*Math.PI/180);
+const map=L.map('map',{preferCanvas:true,zoomSnap:0.5,scrollWheelZoom:true});
+const BASE={
+  topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'Mappa © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA), dati © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}),
+  sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Immagini © Esri, Maxar, Earthstar Geographics'}),
+  osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'})
+};
+let base=BASE.topo.addTo(map);
+const region=L.geoJSON(DATA.boundary,{style:{color:'#1d2621',weight:2,fill:false},interactive:false}).addTo(map);
+map.fitBounds(region.getBounds(),{padding:[8,8]});
+let opacity=0.55;
+const rects=cells.map(c=>{const r=L.rectangle([[c.lat-half,c.lon-half],[c.lat+half,c.lon+half]],{weight:0,fillOpacity:0});r.cell=c;r.on('click',()=>select(c));r.on('mouseover',()=>{if(c!==sel)r.setStyle({weight:1.5,color:'#1d2621'})});r.on('mouseout',()=>{if(c!==sel)r.setStyle({weight:0})});return r.addTo(map)});
+function select(c,fly){sel=c;card(c);restyle();if(c&&fly)map.flyTo([c.lat,c.lon],12,{duration:.8})}
+function restyle(){rects.forEach(r=>{const c=r.cell,col=color(c);r.setStyle({fillColor:col||'#000',fillOpacity:col?opacity:0,weight:c===sel?3:0,color:c===sel?'#7a1fd1':'#1d2621'})})}
+const draw=restyle;
 const PLACES=[["Campobasso",41.561,14.668,1],["Isernia",41.594,14.233,1],["Termoli",42.001,14.995,1],["Agnone",41.810,14.376,0],["Venafro",41.484,14.046,0],["Bojano",41.484,14.472,0],["Larino",41.801,14.913,0],["Capracotta",41.833,14.266,0],["Frosolone",41.600,14.449,0],["Trivento",41.783,14.552,0],["Riccia",41.484,14.836,0],["Sepino",41.408,14.619,0],["Montenero di B.",41.961,14.781,0]];
 const PEAKS=[["M. Miletto 2050",41.453,14.367],["M. Campo 1746",41.835,14.243]];
 
-function ramp(v){const k=['--c0','--c1','--c2','--c3','--c4'];return css(k[Math.max(0,Math.min(4,v))])}
+const MAPCOL=['#fff7bc','#fec44f','#fb8c29','#e3361b','#8c0b3b'];
+function ramp(v){return MAPCOL[Math.max(0,Math.min(4,v))]}
 function color(c){
-  if(layer==='forest'){return c.forest<0.05?css('--nonforest'):ramp(c.forest<0.15?0:c.forest<0.3?1:c.forest<0.5?2:c.forest<0.7?3:4)}
-  if(c.forest<0.05)return css('--nonforest');
+  if(layer==='forest'){return c.forest<0.05?null:ramp(c.forest<0.15?0:c.forest<0.3?1:c.forest<0.5?2:c.forest<0.7?3:4)}
+  if(c.forest<0.05)return null;
   if(layer==='i')return ramp(cls(c.i)+ (c.i>=80?1:0));
   if(layer==='W'||layer==='T'){const v=c[layer];return ramp(v<0.2?0:v<0.4?1:v<0.6?2:v<0.8?3:4)}
-  if(layer==='d'){if(c.d==null)return css('--nonforest');return c.d>=5?css('--up'):c.d<=-5?css('--down'):css('--c0')}
+  if(layer==='d'){if(c.d==null)return null;return c.d>=5?'#1a9850':c.d<=-5?'#d73027':'#ffffbf'}
 }
 function legend(){
   const sw=(col,t)=>`<span><span class="sw" style="background:${col}"></span>${t}</span>`;
   let h='';
   if(layer==='i')h=[sw(ramp(0),'Bassa &lt;15'),sw(ramp(1),'Moderata 15–34'),sw(ramp(2),'Buona 35–59'),sw(ramp(3),'Ottima 60–79'),sw(ramp(4),'≥80')].join('');
   else if(layer==='forest')h=[sw(ramp(0),'5–15 %'),sw(ramp(1),'15–30 %'),sw(ramp(2),'30–50 %'),sw(ramp(3),'50–70 %'),sw(ramp(4),'&gt;70 %')].join('');
-  else if(layer==='d')h=[sw(css('--up'),'migliorata ≥5'),sw(css('--c0'),'stabile'),sw(css('--down'),'peggiorata ≥5')].join('')+`<span>rispetto al ${fmtD(DATA.prev)}</span>`;
+  else if(layer==='d')h=[sw('#1a9850','migliorata ≥5'),sw('#ffffbf','stabile'),sw('#d73027','peggiorata ≥5')].join('')+`<span>rispetto al ${fmtD(DATA.prev)}</span>`;
   else h=[0,1,2,3,4].map(k=>sw(ramp(k),['0–0,2','0,2–0,4','0,4–0,6','0,6–0,8','0,8–1'][k])).join('')+`<span>fattore ${layer==='W'?'acqua':'temperatura'}</span>`;
-  h+=sw(css('--nonforest'),'bosco &lt;5 %');
+  h+=`<span>celle senza colore: bosco &lt;5 %</span>`;
   $('#legend').innerHTML=h;
-}
-function draw(){
-  const r=cv.getBoundingClientRect(); dpr=window.devicePixelRatio||1;
-  W=r.width; H=Math.round(W*aspect); cv.style.height=H+'px';
-  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,W,H);
-  // ritaglio sul confine
-  ctx.save(); ctx.beginPath();
-  B.forEach(p=>p.forEach(ring=>ring.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y)))));
-  ctx.clip('evenodd');
-  ctx.fillStyle=css('--nonforest'); ctx.fillRect(0,0,W,H);
-  cells.forEach(c=>{ctx.fillStyle=color(c);const x0=X(c.lon-half),y0=Y(c.lat+half);ctx.fillRect(x0,y0,X(c.lon+half)-x0+0.6,Y(c.lat-half)-y0+0.6)});
-  ctx.restore();
-  ctx.lineWidth=1.4; ctx.strokeStyle=css('--border-region'); ctx.beginPath();
-  B.forEach(p=>p.forEach(ring=>ring.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y)))));
-  ctx.stroke();
-  [hover,sel].forEach((c,k)=>{if(!c)return;const x0=X(c.lon-half),y0=Y(c.lat+half);ctx.lineWidth=k?2.5:1.5;ctx.strokeStyle=k?css('--accent'):css('--fg');ctx.strokeRect(x0,y0,X(c.lon+half)-x0,Y(c.lat-half)-y0)});
-  const fs=W<500?10:12;
-  const label=(t,x,y,bold)=>{ctx.font=`${bold?600:500} ${fs+(bold?1:0)}px Inter, system-ui, sans-serif`;ctx.lineWidth=3;ctx.strokeStyle=css('--halo');ctx.strokeText(t,x+5,y+4);ctx.fillStyle=css('--label');ctx.fillText(t,x+5,y+4)};
-  PLACES.forEach(([n,la,lo,b])=>{if(W<500&&!b)return;const x=X(lo),y=Y(la);ctx.fillStyle=css('--label');ctx.beginPath();ctx.arc(x,y,b?3:2.2,0,7);ctx.fill();label(n,x,y,b)});
-  PEAKS.forEach(([n,la,lo])=>{const x=X(lo),y=Y(la);ctx.fillStyle=css('--label');ctx.beginPath();ctx.moveTo(x,y-5);ctx.lineTo(x+4,y+2);ctx.lineTo(x-4,y+2);ctx.closePath();ctx.fill();if(W>=500)label(n,x,y,0)});
-}
-function at(ev){
-  const r=cv.getBoundingClientRect(); const px=ev.clientX-r.left, py=ev.clientY-r.top;
-  const lon=lo0+px/W*(lo1-lo0), lat=la1-py/H*(la1-la0);
-  let best=null,bd=1e9;
-  cells.forEach(c=>{const d=Math.abs(c.lon-lon)+Math.abs(c.lat-lat);if(d<bd){bd=d;best=c}});
-  return bd<=DATA.cell*1.1?best:null;
 }
 const pct=v=>Math.round(v*100)+' %';
 const n1=v=>(Math.round(v*10)/10).toLocaleString('it-IT');
@@ -228,10 +220,10 @@ function pillStyle(i){const k=cls(i);return `background:${ramp(k+(i>=80?1:0))};c
 function card(c){
   if(!c){
     const top=forested.slice().sort((a,b)=>b.i-a.i).slice(0,6);
-    $('#card').innerHTML=`<h2>Dove guardare</h2><p class="hint">Tocca una cella della mappa per i dettagli. Le celle con indice più alto questa settimana:</p>
+    $('#card').innerHTML=`<h2>Dove guardare</h2><p class="hint">Ingrandisci la mappa e tocca una cella colorata per i dettagli. Le celle con indice più alto questa settimana:</p>
     <ol class="top">${top.map((t,k)=>`<li><button data-k="${cells.indexOf(t)}">${near(t)}</button> · <b>${t.i}</b> · ${t.elev} m</li>`).join('')}</ol>
     <p class="hint">“Vicino a” indica il paese più vicino dell'elenco sulla mappa, non il punto esatto.</p>`;
-    $('#card').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{sel=cells[+b.dataset.k];card(sel);draw()});
+    $('#card').querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>select(cells[+b.dataset.k],true));
     return;
   }
   const d=c.d==null?'':`<dt>Rispetto alla settimana prima</dt><dd style="color:${c.d>0?'var(--up)':c.d<0?'var(--down)':'inherit'}">${c.d>0?'+':''}${c.d}</dd>`;
@@ -252,14 +244,16 @@ function card(c){
   </dl>
   <p class="sp"><b>In stagione, di solito:</b> ${c.sp}</p>
   <div class="links"><a href="https://www.google.com/maps/@${c.lat},${c.lon},14z/data=!3m1!1e3" target="_blank" rel="noopener">Satellite</a><a href="https://www.openstreetmap.org/#map=14/${c.lat}/${c.lon}" target="_blank" rel="noopener">OpenStreetMap</a><a href="#" id="back">Torna all'elenco</a></div>`;
-  $('#back').onclick=e=>{e.preventDefault();sel=null;card(null);draw()};
+  $('#back').onclick=e=>{e.preventDefault();select(null);map.fitBounds(region.getBounds(),{padding:[8,8]})};
 }
 function near(c){let b=null,bd=1e9;PLACES.forEach(p=>{const d=(p[1]-c.lat)**2+((p[2]-c.lon)*kx)**2;if(d<bd){bd=d;b=p}});const km=Math.round(Math.sqrt(bd)*111);return km<3?`Presso ${b[0]}`:`${km} km da ${b[0]}`}
 
-cv.addEventListener('mousemove',e=>{const c=at(e);if(c!==hover){hover=c;draw()}});
-cv.addEventListener('mouseleave',()=>{hover=null;draw()});
-cv.addEventListener('click',e=>{const c=at(e);sel=c;card(c);draw()});
-document.querySelectorAll('.seg').forEach(b=>b.onclick=()=>{layer=b.dataset.layer;document.querySelectorAll('.seg').forEach(x=>x.setAttribute('aria-pressed',x===b));legend();draw()});
+document.querySelectorAll('.seg[data-layer]').forEach(b=>b.onclick=()=>{layer=b.dataset.layer;document.querySelectorAll('.seg[data-layer]').forEach(x=>x.setAttribute('aria-pressed',x===b));legend();draw()});
+document.querySelectorAll('.seg[data-base]').forEach(b=>b.onclick=()=>{map.removeLayer(base);base=BASE[b.dataset.base].addTo(map);document.querySelectorAll('.seg[data-base]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+$('#op').oninput=e=>{opacity=+e.target.value/100;restyle()};
+$('#loc').onclick=()=>map.locate({setView:true,maxZoom:13});
+map.on('locationfound',e=>L.circleMarker(e.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:1}).addTo(map));
+map.on('locationerror',()=>{$('#loc').textContent='Posizione non disponibile'});
 
 // grafico meteo
 function chart(){
@@ -280,8 +274,8 @@ function chart(){
   g.textAlign='left'; g.fillStyle=css('--tmax'); g.fillText('max',L+6,T+12); g.fillStyle=css('--tmin'); g.fillText('min',L+40,T+12); g.fillStyle=css('--rain'); g.fillText('pioggia',L+74,T+12);
 }
 legend(); card(null); draw(); chart();
-let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{draw();chart()},120)});
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{legend();draw();chart()});
-new MutationObserver(()=>{legend();draw();chart()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{chart()},120)});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{chart()});
+new MutationObserver(()=>{chart()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 })();
 </script>
